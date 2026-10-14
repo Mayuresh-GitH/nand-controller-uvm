@@ -1,0 +1,34 @@
+# Synopsys VCS compilation
+csrc/
+simv
+simv.daidir/
+*.vpd
+*.vcd
+work/
+ucli.key
+transcript
+*.run
+
+# Simulation databases
+*.db
+*.sdb
+*.o
+*.a
+*.so
+*.dylib
+
+# IDE / Editor
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+*.sublime-project
+
+# Build artifacts
+*.log
+*.dump
+*.history
+
+# OS files
+Thumbs.db
