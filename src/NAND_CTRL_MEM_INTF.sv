@@ -1,12 +1,12 @@
 //mem_intf
 interface nand_mem_if (input logic clk);
-  logic       nand_cle;
-  logic       nand_ale;
-  logic       nand_nwe;
-  logic       nand_nre;
-  logic       nand_nce;
-  logic       nand_nwp;
-  logic       nand_rnb;
+  wire       nand_cle;
+  wire       nand_ale;
+  wire       nand_nwe;
+  wire       nand_nre;
+  wire       nand_nce;
+  wire       nand_nwp;
+  wire       nand_rnb;
   wire  [7:0] nand_data;   // wire: the controller and the model both drive it
 
   clocking mon_cb @(posedge clk);
