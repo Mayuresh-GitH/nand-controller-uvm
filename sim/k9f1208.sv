@@ -1024,11 +1024,11 @@ specify
         if (reseted &&  RSTDONE)
         begin
             if (ERS_ACT)
-                duration <= RstErsT + WER_01;
+                duration = RstErsT + WER_01;
             else if (PRG_ACT)
-                duration <= RstProgT+ WER_01;
+                duration = RstProgT+ WER_01;
             else
-                duration <= RstReadT+ WER_01;
+                duration = RstReadT+ WER_01;
             RSTDONE   <= 1'b0;
             ->rstdone_event;
         end
@@ -2730,7 +2730,7 @@ specify
     end
     always @(posedge BuffOutR)
     begin
-        WER_01   = $time;
+        WER_01   = 0;
     end
 
 endmodule
