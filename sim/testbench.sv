@@ -1,4 +1,17 @@
+//-------------------------------------------------------------------------------
+// UVM top-level. Responsibilities:
+//   1. generate the clock
+//   2. instantiate the interfaces and wire them to nand_sys
+//   3. publish the virtual interfaces into the config database
+//   4. dump waves and call run_test()
+//
+// NO stimulus here. nreset and all commands are driven by nand_ctrl_driver.
+//-------------------------------------------------------------------------------
 module testbench;
+  import uvm_pkg::*;
+  import nand_ctrl_pkg::*;
+  `include "uvm_macros.svh"
+
   logic clk = 0;
   always #1.25 clk = ~clk;          // 2.5 ns period, 400 MHz
 
@@ -17,75 +30,49 @@ module testbench;
     .nand_data(mem_if.nand_data)
   );
 
-  // ---- helper tasks ----------------------------------------------------
-
-  // Strobe one host command for exactly one clock cycle
-  task automatic host_cmd(input bit [5:0] c);
-    @(negedge clk);
-    host_if.cmd_in   = c;
-    host_if.activate = 1;
-    @(negedge clk);
-    host_if.activate = 0;
-  endtask
-
-  // Wait until the controller has finished the command (busy low)
-  task automatic wait_idle(int unsigned max_cycles = 1000);
-    int unsigned n = 0;
-    @(posedge clk);                     // let busy rise after the strobe
-    while (host_if.busy) begin
-      @(posedge clk);
-      if (++n > max_cycles) begin
-        $display("%0t ERROR: busy stuck high", $time);
-        $finish;
-      end
-    end
-  endtask
-
-  // Wait until the memory reports ready (rnb high); X counts as not ready
-  task automatic wait_chip_ready(int unsigned max_cycles = 100000);
-    int unsigned n = 0;
-    while (dut.rnb !== 1'b1) begin
-      @(posedge clk);
-      if (++n > max_cycles) begin
-        $display("%0t ERROR: rnb never went high", $time);
-        $finish;
-      end
-    end
-    $display("%0t chip READY after %0d cycles", $time, n);
-  endtask
-
-  // ---- stimulus --------------------------------------------------------
+  // ---- hand the interfaces to the UVM components ------------------------
   initial begin
-    // Initialise host inputs so no port is X at time 0
-    host_if.nreset   = 0;  host_if.activate = 0;
-    host_if.cmd_in   = 0;  host_if.data_in  = 0;
-
-    #50 host_if.nreset = 1;          // release controller reset
-    #11000;                          // wait past memory power-up (10 us)
-
-    host_cmd(`M_RESET);              // reset the controller (this drives CE# high)
-    wait_idle();
-
-    host_cmd(`MI_CHIP_ENABLE);       // drive CE# low so the memory accepts commands
-    wait_idle();
-
-    host_cmd(`M_NAND_RESET);         // send 0xFF to the memory
-    wait_idle();
-
-    wait_chip_ready();               // rnb must go high after the reset time
-
-    #100 $finish;
+    uvm_config_db #(virtual nand_host_if)::set(null, "*", "host_vif", host_if);
+    uvm_config_db #(virtual nand_mem_if )::set(null, "*", "mem_vif",  mem_if);
   end
 
-  // ---- monitor: prints only when a signal that matters changes --------
-  // dut.dev.R_zd          = memory ready register (drives R)
-  // dut.dev.current_state = memory state machine state
+  // ---- waveform dumping -------------------------------------------------
+  // FSDB by default (Verdi).  Run with +vpd to get a VPD for DVE instead.
+  //
+  // $fsdbDump* are Verdi PLI tasks, NOT built into VCS -- the PLI must be
+  // linked at COMPILE time (see FSDB_PLI in sim/Makefile) even though the
+  // format is chosen here at run time.
+  //
+  // $fsdbDumpMDA / $vcdplusmemon are what make unpacked ARRAYS visible.
+  // dut.dut.chip_id[0:4] holds the JEDEC ID bytes -- Phase 1 needs it.
+  initial begin
+    if ($test$plusargs("vpd")) begin
+      $vcdplusfile("nand.vpd");
+      $vcdpluson(0, testbench);
+      $vcdplusmemon(0, testbench);
+    end
+    else begin
+      $fsdbDumpfile("nand.fsdb");
+      $fsdbDumpvars(0, testbench);
+      $fsdbDumpMDA(0, testbench);       // unpacked arrays / memories
+    end
+  end
+
+  // ---- optional console trace: run with +trace --------------------------
+  // Kept from the smoke test; noisy during READ_ID, hence the plusarg.
+  bit trace = 0;
+  initial trace = $test$plusargs("trace");
+
   always @(host_if.activate or host_if.busy or dut.rnb or dut.dev.R_zd or
            dut.dev.current_state or
            mem_if.nand_cle or mem_if.nand_ale or mem_if.nand_nce or mem_if.nand_nwe)
-    $display("%0t act=%b cmd=%0d busy=%b cle=%b nce=%b nwe=%b rnb=%b R_zd=%b state=%0d",
-             $time, host_if.activate, host_if.cmd_in, host_if.busy,
-             mem_if.nand_cle, mem_if.nand_nce, mem_if.nand_nwe, dut.rnb,
-             dut.dev.R_zd, dut.dev.current_state);
+    if (trace)
+      $display("%0t act=%b cmd=%0d busy=%b cle=%b nce=%b nwe=%b rnb=%b R_zd=%b state=%0d",
+               $time, host_if.activate, host_if.cmd_in, host_if.busy,
+               mem_if.nand_cle, mem_if.nand_nce, mem_if.nand_nwe, dut.rnb,
+               dut.dev.R_zd, dut.dev.current_state);
+
+  // ---- start UVM ---------------------------------------------------------
+  initial run_test();                // test chosen by +UVM_TESTNAME
 
 endmodule

@@ -5,11 +5,12 @@ module nand_sys (
   output wire [7:0] data_out,
   output wire       busy,
   output wire       nand_cle, nand_ale, nand_nwe, nand_nre, nand_nce, nand_nwp,
-  input  wire       nand_rnb_w,   // not used; rnb comes from the model
   inout  wire [7:0] nand_data
 );
   wire [15:0] bus16;
   wire        rnb;
+
+  alias bus16[7:0] = nand_data;   // controller and chip share one 8-bit net
 
   nand_master dut (
     .clk(clk), .enable(1'b0), .nreset(nreset),
@@ -27,6 +28,4 @@ module nand_sys (
     .CLE(nand_cle), .ALE(nand_ale), .CENeg(nand_nce), .RENeg(nand_nre),
     .WENeg(nand_nwe), .WPNeg(nand_nwp), .R(rnb)
   );
-
-  assign bus16[15:8] = 8'hZZ;   // upper byte unused on x8 part
 endmodule
