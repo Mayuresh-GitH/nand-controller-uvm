@@ -32,3 +32,34 @@ transcript
 
 # OS files
 Thumbs.db
+
+# VCS / Verdi build artifacts
+simv
+simv.daidir/
+*_simv.daidir/
+csrc/
+vc_hdrs.h
+ucli.key
+DVEfiles/
+.synopsys_dve_serverport.txt
+session.*.tcl
+
+# Waveform dumps
+*.fsdb
+*.vpd
+*.vcd
+
+# Verdi runtime
+novas.*
+verdiLog/
+nWaveLog/
+
+# Logs
+*.log
+
+# Local model backups
+*.orig
+*.orig2
+*.prewer
+EOF
+
